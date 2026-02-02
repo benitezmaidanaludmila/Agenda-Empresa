@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda de Trabajo</title>
+
+<style>
+body { font-family: Arial, sans-serif; margin:0; background:#f5f5f5; }
+header { padding:10px; background:#fff; display:flex; flex-wrap:wrap; gap:10px; align-items:center; }
+button, select, input { padding:6px; }
+
+#calendar {
+  display:grid;
+  grid-template-columns: 70px 1fr;
+  overflow:auto;
+  height: calc(100vh - 70px);
+  background:#fff;
+}
+
+.hours div {
+  height:60px;
+  border-bottom:1px solid #eee;
+  font-size:12px;
+  padding-top:2px;
+}
+
+.techs {
+  display:flex;
+}
+
+.tech {
+  min-width:200px;
+  border-left:1px solid #ddd;
+  position:relative;
+}
+
+.tech header {
+  position:sticky;
+  top:0;
+  background:#fafafa;
+  font-weight:bold;
+  text-align:center;
+  border-bottom:1px solid #ddd;
+}
+
+.event {
+  position:absolute;
+  left:5px;
+  right:5px;
+  border-radius:6px;
+  padding:4px;
+  font-size:11px;
+  color:#000;
+  overflow:hidden;
+}
+
+@media (max-width:768px){
+  .tech { min-width:160px; }
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <button id="prevDay">⬅️</button>
+  <strong id="currentDay"></strong>
+  <button id="nextDay">➡️</button>
+
+  <select id="zoom">
+    <option value="1">Ver cada 1 hora</option>
+    <option value="2">Ver cada 2 horas</option>
+    <option value="3">Ver cada 3 horas</option>
+  </select>
+
+  <input id="search" placeholder="Buscar ID / texto / fecha">
+
+  <button onclick="addTech()">➕ Técnico</button>
+  <button onclick="addOrder()">➕ Pedido</button>
+</header>
+
+<div id="calendar">
+  <div class="hours"></div>
+  <div class="techs" id="techs"></div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBEdaMJKt15dHgvH4FD7YECjxLDnESC-C4",
+  authDomain: "agenda-trabajo-6583b.firebaseapp.com",
+  projectId: "agenda-trabajo-6583b",
+  storageBucket: "agenda-trabajo-6583b.appspot.com",
+  messagingSenderId: "239520668173",
+  appId: "1:239520668173:web:a9dc58bcd4625b1b405344"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+let currentDate = new Date();
+let zoom = 1;
+let techs = [];
+let orders = [];
+
+const hoursDiv = document.querySelector(".hours");
+const techsDiv = document.getElementById("techs");
+
+function renderDate(){
+  document.getElementById("currentDay").innerText =
+    currentDate.toLocaleDateString();
+  renderHours();
+  render();
+}
+
+function renderHours(){
+  hoursDiv.innerHTML = "";
+  for(let h=8; h<=21; h+=zoom){
+    const d = document.createElement("div");
+    d.style.height = (60*zoom)+"px";
+    d.innerText = h+":00";
+    hoursDiv.appendChild(d);
+  }
+}
+
+function render(){
+  techsDiv.innerHTML = "";
+  techs.forEach(t => {
+    const col = document.createElement("div");
+    col.className = "tech";
+    col.innerHTML = "<header>"+t+"</header>";
+    techsDiv.appendChild(col);
+
+    orders.filter(o => o.tech===t && o.date===currentDate.toISOString().slice(0,10))
+    .forEach(o => {
+      const ev = document.createElement("div");
+      ev.className = "event";
+      ev.style.top = ((o.start-8)*60)+"px";
+      ev.style.height = ((o.end-o.start)*60)+"px";
+      ev.style.background = o.color;
+      ev.dataset.search = (o.title+" "+o.date).toLowerCase();
+      ev.innerHTML = "<b>"+o.title+"</b><br>"+o.address+"<br>"+o.desc;
+      col.appendChild(ev);
+    });
+  });
+}
+
+function addTech(){
+  const name = prompt("Nombre del técnico:");
+  if(name){ techs.push(name); render(); }
+}
+
+function addOrder(){
+  if(techs.length===0){ alert("Agregá técnicos primero"); return; }
+  const title = prompt("Título / ID:");
+  const tech = prompt("Técnico:", techs[0]);
+  const start = parseInt(prompt("Hora inicio (8-21):"));
+  const end = parseInt(prompt("Hora fin:"));
+  const address = prompt("Dirección:");
+  const desc = prompt("Descripción:");
+  const color = prompt("Color (red, green, blue, yellow, pink, orange, purple, gray):","green");
+
+  orders.push({
+    title, tech, start, end,
+    address, desc, color,
+    date: currentDate.toISOString().slice(0,10)
+  });
+  render();
+}
+
+document.getElementById("prevDay").onclick=()=>{ currentDate.setDate(currentDate.getDate()-1); renderDate(); }
+document.getElementById("nextDay").onclick=()=>{ currentDate.setDate(currentDate.getDate()+1); renderDate(); }
+
+document.getElementById("zoom").onchange=e=>{
+  zoom=parseInt(e.target.value);
+  renderDate();
+}
+
+document.getElementById("search").oninput=e=>{
+  const v=e.target.value.toLowerCase();
+  document.querySelectorAll(".event").forEach(ev=>{
+    ev.style.display = ev.dataset.search.includes(v) ? "block":"none";
+  });
+}
+
+renderDate();
+</script>
+
+</body>
+</html>
